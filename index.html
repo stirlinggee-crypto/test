@@ -2,16 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Mobile Slides</title>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-
+<title>Slides Editor</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<style>
-* { box-sizing: border-box; }
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
 
+<style>
 body {
   margin: 0;
   font-family: Inter, system-ui, sans-serif;
@@ -21,59 +18,54 @@ body {
   flex-direction: column;
 }
 
-/* TOP BAR */
 header {
   background: #fff;
   border-bottom: 1px solid #ddd;
   padding: 10px;
   display: flex;
-  justify-content: space-between;
+  gap: 10px;
 }
 
-header button {
+button {
   padding: 10px 14px;
-  font-size: 14px;
   border-radius: 6px;
   border: 1px solid #ccc;
   background: #fff;
 }
 
-header button.primary {
+button.primary {
   background: #2563eb;
   color: white;
   border: none;
 }
 
-/* SLIDE LIST (MOBILE DRAWER) */
-#slideList {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.4);
-  display: none;
+#main {
+  flex: 1;
+  display: flex;
 }
 
-#slideList .panel {
+#slides {
+  width: 160px;
   background: white;
-  width: 80%;
-  height: 100%;
-  padding: 10px;
+  border-right: 1px solid #ddd;
   overflow-y: auto;
 }
 
 .thumb {
-  border: 1px solid #ccc;
   padding: 10px;
-  margin-bottom: 10px;
+  border-bottom: 1px solid #eee;
   cursor: pointer;
 }
 
-/* EDITOR */
+.thumb.active {
+  background: #e5edff;
+}
+
 #editor {
   flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 10px;
 }
 
 .slide {
@@ -85,10 +77,9 @@ header button.primary {
   box-shadow: 0 0 10px rgba(0,0,0,.15);
 }
 
-.slide h1 { font-size: 32px; }
-.slide p { font-size: 18px; }
+.slide h1 { font-size: 36px; }
+.slide p { font-size: 20px; }
 
-/* BOTTOM BAR */
 footer {
   background: #fff;
   border-top: 1px solid #ddd;
@@ -96,107 +87,127 @@ footer {
   display: flex;
   justify-content: space-around;
 }
-
-footer button {
-  font-size: 14px;
-  padding: 12px;
-  border-radius: 50%;
-  border: 1px solid #ccc;
-  background: #fff;
-}
 </style>
 </head>
 
 <body>
 
 <header>
-  <button onclick="toggleSlides()">☰ Slides</button>
-  <button class="primary" onclick="present()">▶ Present</button>
+  <button onclick="addSlide()">➕ Slide</button>
+  <button onclick="addImage()">🖼️ Image</button>
+  <button onclick="exportPDF()">📄 Export PDF</button>
 </header>
 
-<!-- SLIDE LIST -->
-<div id="slideList" onclick="toggleSlides()">
-  <div class="panel" onclick="event.stopPropagation()"></div>
+<div id="main">
+  <div id="slides"></div>
+  <div id="editor"></div>
 </div>
 
-<div id="editor"></div>
-
 <footer>
-  <button onclick="addSlide()">➕</button>
-  <button onclick="addImage()">🖼️</button>
-  <button onclick="exportPDF()">📄</button>
+  <button onclick="prev()">⬅️</button>
+  <button onclick="next()">➡️</button>
   <button onclick="deleteSlide()">🗑️</button>
 </footer>
 
 <script>
-let slides = [{ html: "<h1>Title</h1><p>Tap to edit</p>" }];
+let slides = [
+  { html: "<h1>Title</h1><p>Tap to edit</p>" }
+];
 let current = 0;
-let startX = 0;
 
+/* ---------- RENDER ---------- */
 function render() {
-  const ed = document.getElementById("editor");
-  ed.innerHTML = "";
+  renderSlides();
+  const editor = document.getElementById("editor");
+  editor.innerHTML = "";
   const slide = document.createElement("div");
   slide.className = "slide";
   slide.contentEditable = true;
   slide.innerHTML = slides[current].html;
-  slide.ontouchstart = e => startX = e.touches[0].clientX;
-  slide.ontouchend = e => {
-    const dx = e.changedTouches[0].clientX - startX;
-    if (dx > 80) prev();
-    if (dx < -80) next();
-  };
-  ed.appendChild(slide);
-  renderList();
+  editor.appendChild(slide);
 }
 
-function save() {
-  const s = document.querySelector(".slide");
-  if (s) slides[current].html = s.innerHTML;
+function renderSlides() {
+  const s = document.getElementById("slides");
+  s.innerHTML = "";
+  slides.forEach((_, i) => {
+    const d = document.createElement("div");
+    d.className = "thumb" + (i === current ? " active" : "");
+    d.textContent = "Slide " + (i + 1);
+    d.onclick = () => openSlide(i);
+    s.appendChild(d);
+  });
 }
 
-function next() {
-  if (current < slides.length - 1) {
-    save(); current++; render();
-  }
+/* ---------- STATE ---------- */
+function saveCurrent() {
+  const slide = document.querySelector(".slide");
+  if (slide) slides[current].html = slide.innerHTML;
 }
 
-function prev() {
-  if (current > 0) {
-    save(); current--; render();
-  }
+function openSlide(i) {
+  saveCurrent();
+  current = i;
+  render();
 }
 
+/* ---------- SLIDES ---------- */
 function addSlide() {
-  save();
+  saveCurrent();
   slides.push({ html: "<h1>New Slide</h1><p>Edit me</p>" });
   current = slides.length - 1;
   render();
 }
 
 function deleteSlide() {
-  if (slides.length <= 1) return;
+  if (slides.length === 1) return;
   slides.splice(current, 1);
   current = Math.max(0, current - 1);
   render();
 }
 
-function addImage() {
-  const i = document.createElement("input");
-  i.type = "file";
-  i.accept = "image/*";
-  i.onchange = e => {
-    const img = document.createElement("img");
-    img.src = URL.createObjectURL(e.target.files[0]);
-    img.style.maxWidth = "100%";
-    document.querySelector(".slide").appendChild(img);
-  };
-  i.click();
+function next() {
+  if (current < slides.length - 1) {
+    saveCurrent();
+    current++;
+    render();
+  }
 }
 
+function prev() {
+  if (current > 0) {
+    saveCurrent();
+    current--;
+    render();
+  }
+}
+
+/* ---------- IMAGE (BASE64 FIX) ---------- */
+function addImage() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+
+  input.onchange = e => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = document.createElement("img");
+      img.src = reader.result; // BASE64
+      img.style.maxWidth = "100%";
+      document.querySelector(".slide").appendChild(img);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  input.click();
+}
+
+/* ---------- PDF EXPORT (IMAGES STAY) ---------- */
 function exportPDF() {
-  save();
+  saveCurrent();
   const temp = document.createElement("div");
+
   slides.forEach(s => {
     const page = document.createElement("div");
     page.className = "slide";
@@ -204,50 +215,11 @@ function exportPDF() {
     page.innerHTML = s.html;
     temp.appendChild(page);
   });
-  html2pdf().from(temp).save("slides.pdf");
-}
 
-function toggleSlides() {
-  const p = document.getElementById("slideList");
-  p.style.display = p.style.display === "block" ? "none" : "block";
-}
-
-function renderList() {
-  const panel = document.querySelector("#slideList .panel");
-  panel.innerHTML = "";
-  slides.forEach((s, i) => {
-    const d = document.createElement("div");
-    d.className = "thumb";
-    d.innerText = "Slide " + (i + 1);
-    d.onclick = () => {
-      save(); current = i; toggleSlides(); render();
-    };
-    panel.appendChild(d);
-  });
-}
-
-function present() {
-  save();
-  let i = 0;
-  const overlay = document.createElement("div");
-  overlay.style.position = "fixed";
-  overlay.style.inset = 0;
-  overlay.style.background = "black";
-  overlay.style.display = "flex";
-  overlay.style.alignItems = "center";
-  overlay.style.justifyContent = "center";
-
-  const slide = document.createElement("div");
-  slide.className = "slide";
-  slide.innerHTML = slides[0].html;
-  overlay.appendChild(slide);
-  document.body.appendChild(overlay);
-
-  overlay.onclick = () => {
-    i++;
-    if (i >= slides.length) document.body.removeChild(overlay);
-    else slide.innerHTML = slides[i].html;
-  };
+  html2pdf().set({
+    filename: "slides.pdf",
+    html2canvas: { scale: 2 }
+  }).from(temp).save();
 }
 
 /* INIT */
