@@ -2,177 +2,174 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>HTML PowerPoint</title>
+<title>Mobile Slides</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
+* { box-sizing: border-box; }
+
 body {
   margin: 0;
   font-family: Inter, system-ui, sans-serif;
   background: #f3f3f3;
-  display: flex;
   height: 100vh;
-}
-
-/* SIDEBAR */
-#slides {
-  width: 220px;
-  background: #fff;
-  border-right: 1px solid #ddd;
-  padding: 10px;
-  overflow-y: auto;
-}
-
-.slide-thumb {
-  background: #fafafa;
-  border: 1px solid #ccc;
-  padding: 10px;
-  margin-bottom: 10px;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.slide-thumb.active {
-  border: 2px solid #2563eb;
-}
-
-/* MAIN */
-main {
-  flex: 1;
   display: flex;
   flex-direction: column;
 }
 
-/* TOOLBAR */
+/* TOP BAR */
 header {
-  background: #ffffff;
+  background: #fff;
   border-bottom: 1px solid #ddd;
-  padding: 8px;
+  padding: 10px;
   display: flex;
-  gap: 8px;
+  justify-content: space-between;
 }
 
-button {
-  padding: 6px 10px;
+header button {
+  padding: 10px 14px;
+  font-size: 14px;
+  border-radius: 6px;
   border: 1px solid #ccc;
   background: #fff;
-  border-radius: 4px;
-  cursor: pointer;
 }
 
-button.primary {
+header button.primary {
   background: #2563eb;
   color: white;
   border: none;
 }
 
-/* SLIDE */
+/* SLIDE LIST (MOBILE DRAWER) */
+#slideList {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+  display: none;
+}
+
+#slideList .panel {
+  background: white;
+  width: 80%;
+  height: 100%;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.thumb {
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+/* EDITOR */
 #editor {
   flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 10px;
 }
 
 .slide {
-  width: 960px;
-  height: 540px;
+  width: 100%;
+  max-width: 960px;
+  aspect-ratio: 16 / 9;
   background: white;
-  box-shadow: 0 0 15px rgba(0,0,0,.15);
-  padding: 40px;
+  padding: 20px;
+  box-shadow: 0 0 10px rgba(0,0,0,.15);
 }
 
-.slide[contenteditable="true"]:focus {
-  outline: none;
-}
+.slide h1 { font-size: 32px; }
+.slide p { font-size: 18px; }
 
-.slide h1 {
-  font-size: 48px;
-}
-
-.slide p {
-  font-size: 22px;
-}
-
-/* PRESENT MODE */
-.present {
-  position: fixed;
-  inset: 0;
-  background: black;
+/* BOTTOM BAR */
+footer {
+  background: #fff;
+  border-top: 1px solid #ddd;
+  padding: 10px;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 999;
+  justify-content: space-around;
+}
+
+footer button {
+  font-size: 14px;
+  padding: 12px;
+  border-radius: 50%;
+  border: 1px solid #ccc;
+  background: #fff;
 }
 </style>
 </head>
 
 <body>
 
+<header>
+  <button onclick="toggleSlides()">☰ Slides</button>
+  <button class="primary" onclick="present()">▶ Present</button>
+</header>
+
 <!-- SLIDE LIST -->
-<div id="slides"></div>
+<div id="slideList" onclick="toggleSlides()">
+  <div class="panel" onclick="event.stopPropagation()"></div>
+</div>
 
-<!-- MAIN -->
-<main>
-  <header>
-    <button onclick="addSlide()">New Slide</button>
-    <button onclick="addImage()">Image</button>
-    <button onclick="deleteSlide()">Delete</button>
-    <button onclick="exportPDF()">Export PDF</button>
-    <button class="primary" onclick="present()">Present</button>
-  </header>
+<div id="editor"></div>
 
-  <div id="editor"></div>
-</main>
+<footer>
+  <button onclick="addSlide()">➕</button>
+  <button onclick="addImage()">🖼️</button>
+  <button onclick="exportPDF()">📄</button>
+  <button onclick="deleteSlide()">🗑️</button>
+</footer>
 
 <script>
-let slides = [];
+let slides = [{ html: "<h1>Title</h1><p>Tap to edit</p>" }];
 let current = 0;
-
-function createSlide(content = "<h1>Title</h1><p>Click to edit</p>") {
-  return { html: content };
-}
-
-function renderSidebar() {
-  const s = document.getElementById("slides");
-  s.innerHTML = "";
-  slides.forEach((slide, i) => {
-    const div = document.createElement("div");
-    div.className = "slide-thumb" + (i === current ? " active" : "");
-    div.innerText = "Slide " + (i + 1);
-    div.onclick = () => openSlide(i);
-    s.appendChild(div);
-  });
-}
-
-function openSlide(i) {
-  saveCurrent();
-  current = i;
-  render();
-}
-
-function saveCurrent() {
-  const el = document.querySelector(".slide");
-  if (el) slides[current].html = el.innerHTML;
-}
+let startX = 0;
 
 function render() {
-  renderSidebar();
   const ed = document.getElementById("editor");
   ed.innerHTML = "";
-  const div = document.createElement("div");
-  div.className = "slide";
-  div.contentEditable = true;
-  div.innerHTML = slides[current].html;
-  ed.appendChild(div);
+  const slide = document.createElement("div");
+  slide.className = "slide";
+  slide.contentEditable = true;
+  slide.innerHTML = slides[current].html;
+  slide.ontouchstart = e => startX = e.touches[0].clientX;
+  slide.ontouchend = e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    if (dx > 80) prev();
+    if (dx < -80) next();
+  };
+  ed.appendChild(slide);
+  renderList();
+}
+
+function save() {
+  const s = document.querySelector(".slide");
+  if (s) slides[current].html = s.innerHTML;
+}
+
+function next() {
+  if (current < slides.length - 1) {
+    save(); current++; render();
+  }
+}
+
+function prev() {
+  if (current > 0) {
+    save(); current--; render();
+  }
 }
 
 function addSlide() {
-  saveCurrent();
-  slides.push(createSlide());
+  save();
+  slides.push({ html: "<h1>New Slide</h1><p>Edit me</p>" });
   current = slides.length - 1;
   render();
 }
@@ -185,60 +182,75 @@ function deleteSlide() {
 }
 
 function addImage() {
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = "image/*";
-  input.onchange = e => {
+  const i = document.createElement("input");
+  i.type = "file";
+  i.accept = "image/*";
+  i.onchange = e => {
     const img = document.createElement("img");
     img.src = URL.createObjectURL(e.target.files[0]);
     img.style.maxWidth = "100%";
     document.querySelector(".slide").appendChild(img);
   };
-  input.click();
+  i.click();
 }
 
 function exportPDF() {
-  saveCurrent();
+  save();
   const temp = document.createElement("div");
   slides.forEach(s => {
     const page = document.createElement("div");
     page.className = "slide";
-    page.innerHTML = s.html;
     page.style.pageBreakAfter = "always";
+    page.innerHTML = s.html;
     temp.appendChild(page);
   });
   html2pdf().from(temp).save("slides.pdf");
 }
 
+function toggleSlides() {
+  const p = document.getElementById("slideList");
+  p.style.display = p.style.display === "block" ? "none" : "block";
+}
+
+function renderList() {
+  const panel = document.querySelector("#slideList .panel");
+  panel.innerHTML = "";
+  slides.forEach((s, i) => {
+    const d = document.createElement("div");
+    d.className = "thumb";
+    d.innerText = "Slide " + (i + 1);
+    d.onclick = () => {
+      save(); current = i; toggleSlides(); render();
+    };
+    panel.appendChild(d);
+  });
+}
+
 function present() {
-  saveCurrent();
+  save();
   let i = 0;
-  const p = document.createElement("div");
-  p.className = "present";
+  const overlay = document.createElement("div");
+  overlay.style.position = "fixed";
+  overlay.style.inset = 0;
+  overlay.style.background = "black";
+  overlay.style.display = "flex";
+  overlay.style.alignItems = "center";
+  overlay.style.justifyContent = "center";
+
   const slide = document.createElement("div");
   slide.className = "slide";
   slide.innerHTML = slides[0].html;
-  p.appendChild(slide);
-  document.body.appendChild(p);
+  overlay.appendChild(slide);
+  document.body.appendChild(overlay);
 
-  document.onkeydown = e => {
-    if (e.key === "ArrowRight") {
-      i = Math.min(slides.length - 1, i + 1);
-      slide.innerHTML = slides[i].html;
-    }
-    if (e.key === "ArrowLeft") {
-      i = Math.max(0, i - 1);
-      slide.innerHTML = slides[i].html;
-    }
-    if (e.key === "Escape") {
-      document.body.removeChild(p);
-      document.onkeydown = null;
-    }
+  overlay.onclick = () => {
+    i++;
+    if (i >= slides.length) document.body.removeChild(overlay);
+    else slide.innerHTML = slides[i].html;
   };
 }
 
 /* INIT */
-slides.push(createSlide());
 render();
 </script>
 
