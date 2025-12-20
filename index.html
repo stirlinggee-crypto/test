@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HTML PowerPoint</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+body {
+  margin: 0;
+  font-family: Inter, system-ui, sans-serif;
+  background: #f3f3f3;
+  display: flex;
+  height: 100vh;
+}
+
+/* SIDEBAR */
+#slides {
+  width: 220px;
+  background: #fff;
+  border-right: 1px solid #ddd;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.slide-thumb {
+  background: #fafafa;
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.slide-thumb.active {
+  border: 2px solid #2563eb;
+}
+
+/* MAIN */
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* TOOLBAR */
+header {
+  background: #ffffff;
+  border-bottom: 1px solid #ddd;
+  padding: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button.primary {
+  background: #2563eb;
+  color: white;
+  border: none;
+}
+
+/* SLIDE */
+#editor {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.slide {
+  width: 960px;
+  height: 540px;
+  background: white;
+  box-shadow: 0 0 15px rgba(0,0,0,.15);
+  padding: 40px;
+}
+
+.slide[contenteditable="true"]:focus {
+  outline: none;
+}
+
+.slide h1 {
+  font-size: 48px;
+}
+
+.slide p {
+  font-size: 22px;
+}
+
+/* PRESENT MODE */
+.present {
+  position: fixed;
+  inset: 0;
+  background: black;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+</style>
+</head>
+
+<body>
+
+<!-- SLIDE LIST -->
+<div id="slides"></div>
+
+<!-- MAIN -->
+<main>
+  <header>
+    <button onclick="addSlide()">New Slide</button>
+    <button onclick="addImage()">Image</button>
+    <button onclick="deleteSlide()">Delete</button>
+    <button onclick="exportPDF()">Export PDF</button>
+    <button class="primary" onclick="present()">Present</button>
+  </header>
+
+  <div id="editor"></div>
+</main>
+
+<script>
+let slides = [];
+let current = 0;
+
+function createSlide(content = "<h1>Title</h1><p>Click to edit</p>") {
+  return { html: content };
+}
+
+function renderSidebar() {
+  const s = document.getElementById("slides");
+  s.innerHTML = "";
+  slides.forEach((slide, i) => {
+    const div = document.createElement("div");
+    div.className = "slide-thumb" + (i === current ? " active" : "");
+    div.innerText = "Slide " + (i + 1);
+    div.onclick = () => openSlide(i);
+    s.appendChild(div);
+  });
+}
+
+function openSlide(i) {
+  saveCurrent();
+  current = i;
+  render();
+}
+
+function saveCurrent() {
+  const el = document.querySelector(".slide");
+  if (el) slides[current].html = el.innerHTML;
+}
+
+function render() {
+  renderSidebar();
+  const ed = document.getElementById("editor");
+  ed.innerHTML = "";
+  const div = document.createElement("div");
+  div.className = "slide";
+  div.contentEditable = true;
+  div.innerHTML = slides[current].html;
+  ed.appendChild(div);
+}
+
+function addSlide() {
+  saveCurrent();
+  slides.push(createSlide());
+  current = slides.length - 1;
+  render();
+}
+
+function deleteSlide() {
+  if (slides.length <= 1) return;
+  slides.splice(current, 1);
+  current = Math.max(0, current - 1);
+  render();
+}
+
+function addImage() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.onchange = e => {
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(e.target.files[0]);
+    img.style.maxWidth = "100%";
+    document.querySelector(".slide").appendChild(img);
+  };
+  input.click();
+}
+
+function exportPDF() {
+  saveCurrent();
+  const temp = document.createElement("div");
+  slides.forEach(s => {
+    const page = document.createElement("div");
+    page.className = "slide";
+    page.innerHTML = s.html;
+    page.style.pageBreakAfter = "always";
+    temp.appendChild(page);
+  });
+  html2pdf().from(temp).save("slides.pdf");
+}
+
+function present() {
+  saveCurrent();
+  let i = 0;
+  const p = document.createElement("div");
+  p.className = "present";
+  const slide = document.createElement("div");
+  slide.className = "slide";
+  slide.innerHTML = slides[0].html;
+  p.appendChild(slide);
+  document.body.appendChild(p);
+
+  document.onkeydown = e => {
+    if (e.key === "ArrowRight") {
+      i = Math.min(slides.length - 1, i + 1);
+      slide.innerHTML = slides[i].html;
+    }
+    if (e.key === "ArrowLeft") {
+      i = Math.max(0, i - 1);
+      slide.innerHTML = slides[i].html;
+    }
+    if (e.key === "Escape") {
+      document.body.removeChild(p);
+      document.onkeydown = null;
+    }
+  };
+}
+
+/* INIT */
+slides.push(createSlide());
+render();
+</script>
+
+</body>
+</html>
